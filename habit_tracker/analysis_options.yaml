@@ -1,0 +1,8 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    # prefer_const_widgets is no longer a recognized rule; removed to fix analysis errors
+    avoid_print: true
+    always_use_package_imports: false
