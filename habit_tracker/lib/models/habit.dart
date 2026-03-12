@@ -1,19 +1,66 @@
 import 'dart:convert';
+import 'package:hive/hive.dart';
 
-enum HabitFrequency { daily, weekly }
+part 'habit.g.dart';
 
-enum HabitCategory { health, productivity, mindfulness, fitness, learning, custom }
+// ─── Enums ────────────────────────────────────────────────────────────────────
 
-class Habit {
+@HiveType(typeId: 1)
+enum HabitFrequency {
+  @HiveField(0)
+  daily,
+  @HiveField(1)
+  weekly,
+}
+
+@HiveType(typeId: 2)
+enum HabitCategory {
+  @HiveField(0)
+  health,
+  @HiveField(1)
+  productivity,
+  @HiveField(2)
+  mindfulness,
+  @HiveField(3)
+  fitness,
+  @HiveField(4)
+  learning,
+  @HiveField(5)
+  custom,
+}
+
+// ─── Model ────────────────────────────────────────────────────────────────────
+
+@HiveType(typeId: 0)
+class Habit extends HiveObject {
+  @HiveField(0)
   final String id;
+
+  @HiveField(1)
   String title;
+
+  @HiveField(2)
   String? description;
+
+  @HiveField(3)
   HabitCategory category;
+
+  @HiveField(4)
   HabitFrequency frequency;
+
+  @HiveField(5)
   String colorHex;
+
+  @HiveField(6)
   String iconName;
+
+  @HiveField(7)
   DateTime createdAt;
+
+  @HiveField(8)
   List<DateTime> completedDates;
+
+  @HiveField(9)
   bool isArchived;
 
   Habit({
@@ -29,15 +76,17 @@ class Habit {
     this.isArchived = false,
   }) : completedDates = completedDates ?? [];
 
-  /// Check if completed on a specific date
+  // ─── Computed properties ───────────────────────────────────────────────────
+
   bool isCompletedOn(DateTime date) {
-    return completedDates.any((d) =>
-        d.year == date.year && d.month == date.month && d.day == date.day);
+    return completedDates.any(
+      (d) => d.year == date.year && d.month == date.month && d.day == date.day,
+    );
   }
 
   bool get isCompletedToday => isCompletedOn(DateTime.now());
 
-  /// Current streak (consecutive days ending today)
+  /// Текущая серия (streak) — непрерывные дни до сегодня
   int get currentStreak {
     int streak = 0;
     DateTime day = DateTime.now();
@@ -48,7 +97,7 @@ class Habit {
     return streak;
   }
 
-  /// Best streak ever
+  /// Лучшая серия за всё время
   int get bestStreak {
     if (completedDates.isEmpty) return 0;
     final sorted = [...completedDates]..sort();
@@ -65,7 +114,7 @@ class Habit {
     return best;
   }
 
-  /// Completion rate for last 30 days
+  /// Процент выполнения за последние 30 дней
   double get completionRate30Days {
     final now = DateTime.now();
     int completed = 0;
@@ -75,6 +124,20 @@ class Habit {
     return completed / 30;
   }
 
+  /// Карта выполнения за последние [days] дней
+  Map<DateTime, int> getHeatmapData({int days = 365}) {
+    final now = DateTime.now();
+    final map = <DateTime, int>{};
+    for (int i = 0; i < days; i++) {
+      final day = now.subtract(Duration(days: i));
+      final key = DateTime(day.year, day.month, day.day);
+      map[key] = isCompletedOn(day) ? 1 : 0;
+    }
+    return map;
+  }
+
+  // ─── CopyWith ─────────────────────────────────────────────────────────────
+
   Habit copyWith({
     String? title,
     String? description,
@@ -83,6 +146,7 @@ class Habit {
     String? colorHex,
     String? iconName,
     bool? isArchived,
+    List<DateTime>? completedDates,
   }) {
     return Habit(
       id: id,
@@ -93,10 +157,12 @@ class Habit {
       colorHex: colorHex ?? this.colorHex,
       iconName: iconName ?? this.iconName,
       createdAt: createdAt,
-      completedDates: completedDates,
+      completedDates: completedDates ?? this.completedDates,
       isArchived: isArchived ?? this.isArchived,
     );
   }
+
+  // ─── JSON (для обратной совместимости при миграции) ───────────────────────
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -107,7 +173,8 @@ class Habit {
         'colorHex': colorHex,
         'iconName': iconName,
         'createdAt': createdAt.toIso8601String(),
-        'completedDates': completedDates.map((d) => d.toIso8601String()).toList(),
+        'completedDates':
+            completedDates.map((d) => d.toIso8601String()).toList(),
         'isArchived': isArchived,
       };
 
@@ -115,7 +182,7 @@ class Habit {
         id: json['id'],
         title: json['title'],
         description: json['description'],
-        category: HabitCategory.values[json['category'] ?? 6],
+        category: HabitCategory.values[json['category'] ?? 5],
         frequency: HabitFrequency.values[json['frequency'] ?? 0],
         colorHex: json['colorHex'] ?? '#6C63FF',
         iconName: json['iconName'] ?? 'star',
